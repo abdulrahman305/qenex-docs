@@ -1,6 +1,6 @@
-# QENEX Ecosystem Documentation
+# QENEX Documentation Hub
 
-Complete technical documentation for the QENEX platform.
+Comprehensive technical documentation for the QENEX Banking Operating System and complete financial ecosystem.
 
 ## 🗺 System Overview
 
