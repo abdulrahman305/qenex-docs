@@ -1,4 +1,54 @@
-# QENEX Banking Operating System - System Architecture
+# QENEX System Architecture
+
+## Overview
+
+QENEX is a unified financial operating system designed for enterprise deployment with zero external dependencies. The architecture follows a layered approach ensuring modularity, security, and scalability.
+
+## Core Architecture Principles
+
+### 1. Zero Dependencies
+- Pure Python implementation
+- No external packages required
+- Self-contained cryptography
+- Built-in database engine
+
+### 2. Security First
+- Defense in depth
+- Principle of least privilege
+- Secure by default
+- Continuous validation
+
+### 3. Cross-Platform
+- OS abstraction layer
+- Platform-specific optimizations
+- Universal file paths
+- Native integrations
+
+## System Components
+
+### Financial Core
+- Transaction processing engine
+- Multi-currency support
+- ACID compliance
+- Real-time settlement
+
+### Blockchain Layer
+- Proof of Stake consensus
+- Smart contract execution
+- Distributed ledger
+- Cryptographic validation
+
+### DeFi Suite
+- Automated Market Maker
+- Lending protocols
+- Staking mechanisms
+- Yield optimization
+
+### AI Analytics
+- Risk assessment
+- Fraud detection
+- Market prediction
+- Pattern recognition
 
 ## Overview
 
