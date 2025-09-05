@@ -1,1038 +1,698 @@
 #!/usr/bin/env python3
-"""
-QENEX AI System - Advanced Financial Intelligence
-Real machine learning with no external dependencies
-"""
 
-import math
-import random
 import json
 import time
-import pickle
-from typing import List, Dict, Optional, Tuple, Any
-from decimal import Decimal
-from datetime import datetime, timedelta
-from pathlib import Path
+import math
+import random
+import secrets
+import sqlite3
 import threading
+from typing import Dict, List, Optional, Tuple, Any, Callable
+from decimal import Decimal, getcontext
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timedelta
+from collections import defaultdict, deque
+from queue import Queue, PriorityQueue
+import hashlib
+import base64
 
-class Matrix:
-    """Matrix operations for neural networks"""
-    
-    def __init__(self, rows: int, cols: int, data: Optional[List[List[float]]] = None):
-        self.rows = rows
-        self.cols = cols
-        if data is None:
-            self.data = [[0.0 for _ in range(cols)] for _ in range(rows)]
-        else:
-            self.data = data
-    
-    def __getitem__(self, key):
-        return self.data[key]
-    
-    def __setitem__(self, key, value):
-        self.data[key] = value
-    
-    def multiply(self, other: 'Matrix') -> 'Matrix':
-        """Matrix multiplication"""
-        if self.cols != other.rows:
-            raise ValueError("Invalid matrix dimensions for multiplication")
-        
-        result = Matrix(self.rows, other.cols)
-        for i in range(self.rows):
-            for j in range(other.cols):
-                for k in range(self.cols):
-                    result[i][j] += self[i][k] * other[k][j]
-        
-        return result
-    
-    def add(self, other: 'Matrix') -> 'Matrix':
-        """Matrix addition"""
-        if self.rows != other.rows or self.cols != other.cols:
-            raise ValueError("Invalid matrix dimensions for addition")
-        
-        result = Matrix(self.rows, self.cols)
-        for i in range(self.rows):
-            for j in range(self.cols):
-                result[i][j] = self[i][j] + other[i][j]
-        
-        return result
-    
-    def transpose(self) -> 'Matrix':
-        """Matrix transpose"""
-        result = Matrix(self.cols, self.rows)
-        for i in range(self.rows):
-            for j in range(self.cols):
-                result[j][i] = self[i][j]
-        return result
-    
-    def apply_function(self, func) -> 'Matrix':
-        """Apply function to all elements"""
-        result = Matrix(self.rows, self.cols)
-        for i in range(self.rows):
-            for j in range(self.cols):
-                result[i][j] = func(self[i][j])
-        return result
-    
-    @staticmethod
-    def random_matrix(rows: int, cols: int, min_val: float = -1.0, max_val: float = 1.0) -> 'Matrix':
-        """Create random matrix"""
-        data = [[random.uniform(min_val, max_val) for _ in range(cols)] for _ in range(rows)]
-        return Matrix(rows, cols, data)
+getcontext().prec = 256
+
+@dataclass
+class NeuronLayer:
+    size: int
+    weights: List[List[float]] = field(default_factory=list)
+    biases: List[float] = field(default_factory=list)
+    activation: str = "relu"
+    dropout_rate: float = 0.0
+
+@dataclass
+class TrainingData:
+    inputs: List[float]
+    targets: List[float]
+    timestamp: float = field(default_factory=time.time)
+    accuracy: float = 0.0
+    loss: float = 0.0
 
 class ActivationFunctions:
-    """Neural network activation functions"""
+    @staticmethod
+    def relu(x: float) -> float:
+        return max(0, x)
+    
+    @staticmethod
+    def relu_derivative(x: float) -> float:
+        return 1 if x > 0 else 0
     
     @staticmethod
     def sigmoid(x: float) -> float:
-        """Sigmoid activation function"""
-        try:
-            return 1.0 / (1.0 + math.exp(-max(-500, min(500, x))))
-        except (OverflowError, ZeroDivisionError):
-            return 0.0 if x < 0 else 1.0
+        return 1 / (1 + math.exp(-min(max(x, -500), 500)))
     
     @staticmethod
     def sigmoid_derivative(x: float) -> float:
-        """Derivative of sigmoid"""
         s = ActivationFunctions.sigmoid(x)
         return s * (1 - s)
     
     @staticmethod
     def tanh(x: float) -> float:
-        """Hyperbolic tangent"""
-        try:
-            return math.tanh(max(-500, min(500, x)))
-        except OverflowError:
-            return -1.0 if x < 0 else 1.0
+        return math.tanh(x)
     
     @staticmethod
     def tanh_derivative(x: float) -> float:
-        """Derivative of tanh"""
-        t = ActivationFunctions.tanh(x)
-        return 1 - t * t
+        return 1 - math.tanh(x) ** 2
     
     @staticmethod
-    def relu(x: float) -> float:
-        """Rectified Linear Unit"""
-        return max(0, x)
-    
-    @staticmethod
-    def relu_derivative(x: float) -> float:
-        """Derivative of ReLU"""
-        return 1.0 if x > 0 else 0.0
-    
-    @staticmethod
-    def leaky_relu(x: float, alpha: float = 0.01) -> float:
-        """Leaky ReLU"""
-        return max(alpha * x, x)
-    
-    @staticmethod
-    def leaky_relu_derivative(x: float, alpha: float = 0.01) -> float:
-        """Derivative of Leaky ReLU"""
-        return 1.0 if x > 0 else alpha
+    def softmax(x: List[float]) -> List[float]:
+        exp_x = [math.exp(min(val, 500)) for val in x]
+        sum_exp = sum(exp_x)
+        return [val / sum_exp for val in exp_x]
 
-class NeuralLayer:
-    """Single layer of neural network"""
-    
-    def __init__(self, input_size: int, output_size: int, activation: str = 'sigmoid'):
-        self.input_size = input_size
-        self.output_size = output_size
-        self.activation = activation
-        
-        # Initialize weights with Xavier initialization
-        std = math.sqrt(2.0 / (input_size + output_size))
-        self.weights = Matrix.random_matrix(output_size, input_size, -std, std)
-        self.biases = Matrix.random_matrix(output_size, 1, -0.1, 0.1)
-        
-        # For training
-        self.last_input = None
-        self.last_output = None
-        self.last_weighted_sum = None
-    
-    def forward(self, input_matrix: Matrix) -> Matrix:
-        """Forward propagation through layer"""
-        self.last_input = input_matrix
-        
-        # Weighted sum: W * X + B
-        self.last_weighted_sum = self.weights.multiply(input_matrix).add(self.biases)
-        
-        # Apply activation function
-        if self.activation == 'sigmoid':
-            self.last_output = self.last_weighted_sum.apply_function(ActivationFunctions.sigmoid)
-        elif self.activation == 'tanh':
-            self.last_output = self.last_weighted_sum.apply_function(ActivationFunctions.tanh)
-        elif self.activation == 'relu':
-            self.last_output = self.last_weighted_sum.apply_function(ActivationFunctions.relu)
-        elif self.activation == 'leaky_relu':
-            self.last_output = self.last_weighted_sum.apply_function(ActivationFunctions.leaky_relu)
-        else:
-            self.last_output = self.last_weighted_sum  # Linear activation
-        
-        return self.last_output
-    
-    def backward(self, output_gradient: Matrix, learning_rate: float) -> Matrix:
-        """Backward propagation through layer"""
-        if self.last_input is None or self.last_weighted_sum is None:
-            raise ValueError("Must call forward() before backward()")
-        
-        # Calculate activation gradient
-        if self.activation == 'sigmoid':
-            activation_grad = self.last_weighted_sum.apply_function(ActivationFunctions.sigmoid_derivative)
-        elif self.activation == 'tanh':
-            activation_grad = self.last_weighted_sum.apply_function(ActivationFunctions.tanh_derivative)
-        elif self.activation == 'relu':
-            activation_grad = self.last_weighted_sum.apply_function(ActivationFunctions.relu_derivative)
-        elif self.activation == 'leaky_relu':
-            activation_grad = self.last_weighted_sum.apply_function(ActivationFunctions.leaky_relu_derivative)
-        else:
-            activation_grad = Matrix(self.output_size, 1)
-            for i in range(self.output_size):
-                activation_grad[i][0] = 1.0  # Linear activation derivative
-        
-        # Element-wise multiplication of gradients
-        delta = Matrix(self.output_size, 1)
-        for i in range(self.output_size):
-            delta[i][0] = output_gradient[i][0] * activation_grad[i][0]
-        
-        # Calculate weight gradients
-        weight_gradients = delta.multiply(self.last_input.transpose())
-        
-        # Update weights and biases
-        for i in range(self.output_size):
-            for j in range(self.input_size):
-                self.weights[i][j] -= learning_rate * weight_gradients[i][j]
-            self.biases[i][0] -= learning_rate * delta[i][0]
-        
-        # Calculate input gradient for previous layer
-        input_gradient = self.weights.transpose().multiply(delta)
-        
-        return input_gradient
-
-class DeepNeuralNetwork:
-    """Deep neural network with backpropagation"""
-    
-    def __init__(self, architecture: List[int], activations: Optional[List[str]] = None):
-        """
-        Initialize neural network
-        
-        Args:
-            architecture: List of layer sizes [input, hidden1, hidden2, ..., output]
-            activations: List of activation functions for each layer
-        """
-        if len(architecture) < 2:
-            raise ValueError("Network must have at least input and output layers")
-        
+class NeuralNetwork:
+    def __init__(self, architecture: List[int], learning_rate: float = 0.001):
         self.architecture = architecture
+        self.learning_rate = learning_rate
         self.layers = []
+        self.optimizer_state = {}
         
-        # Default activations
-        if activations is None:
-            activations = ['relu'] * (len(architecture) - 2) + ['sigmoid']
-        
-        # Create layers
         for i in range(len(architecture) - 1):
-            layer = NeuralLayer(
-                architecture[i], 
-                architecture[i + 1], 
-                activations[i] if i < len(activations) else 'sigmoid'
+            layer = NeuronLayer(
+                size=architecture[i + 1],
+                weights=[[random.gauss(0, math.sqrt(2/architecture[i])) 
+                          for _ in range(architecture[i])]
+                         for _ in range(architecture[i + 1])],
+                biases=[0.0 for _ in range(architecture[i + 1])],
+                activation="relu" if i < len(architecture) - 2 else "sigmoid"
             )
             self.layers.append(layer)
-        
-        self.learning_rate = 0.001
-        self.training_history = []
-        self.epoch = 0
     
     def forward(self, inputs: List[float]) -> List[float]:
-        """Forward propagation through entire network"""
-        if len(inputs) != self.architecture[0]:
-            raise ValueError(f"Input size {len(inputs)} doesn't match expected {self.architecture[0]}")
+        current = inputs
+        activations = [current]
         
-        # Convert input to matrix
-        current = Matrix(len(inputs), 1)
-        for i, val in enumerate(inputs):
-            current[i][0] = val
-        
-        # Forward through all layers
         for layer in self.layers:
-            current = layer.forward(current)
-        
-        # Convert output to list
-        return [current[i][0] for i in range(current.rows)]
-    
-    def backward(self, targets: List[float]) -> float:
-        """Backward propagation with error calculation"""
-        if len(targets) != self.architecture[-1]:
-            raise ValueError(f"Target size {len(targets)} doesn't match output size {self.architecture[-1]}")
-        
-        # Calculate output error
-        outputs = [self.layers[-1].last_output[i][0] for i in range(len(targets))]
-        errors = [targets[i] - outputs[i] for i in range(len(targets))]
-        
-        # Calculate mean squared error
-        mse = sum(error ** 2 for error in errors) / len(errors)
-        
-        # Convert error to gradient matrix
-        output_gradient = Matrix(len(targets), 1)
-        for i, error in enumerate(errors):
-            output_gradient[i][0] = error
-        
-        # Backpropagate through all layers
-        current_gradient = output_gradient
-        for layer in reversed(self.layers):
-            current_gradient = layer.backward(current_gradient, self.learning_rate)
-        
-        return mse
-    
-    def train_batch(self, inputs_batch: List[List[float]], targets_batch: List[List[float]]) -> float:
-        """Train on a batch of examples"""
-        if len(inputs_batch) != len(targets_batch):
-            raise ValueError("Inputs and targets batch sizes must match")
-        
-        total_error = 0.0
-        
-        for inputs, targets in zip(inputs_batch, targets_batch):
-            # Forward pass
-            self.forward(inputs)
+            next_layer = []
+            for neuron_idx in range(layer.size):
+                value = sum(current[i] * layer.weights[neuron_idx][i] 
+                           for i in range(len(current)))
+                value += layer.biases[neuron_idx]
+                
+                if layer.activation == "relu":
+                    value = ActivationFunctions.relu(value)
+                elif layer.activation == "sigmoid":
+                    value = ActivationFunctions.sigmoid(value)
+                elif layer.activation == "tanh":
+                    value = ActivationFunctions.tanh(value)
+                
+                next_layer.append(value)
             
-            # Backward pass
-            error = self.backward(targets)
-            total_error += error
+            current = next_layer
+            activations.append(current)
         
-        avg_error = total_error / len(inputs_batch)
-        
-        # Record training history
-        self.training_history.append({
-            'epoch': self.epoch,
-            'error': avg_error,
-            'timestamp': datetime.now()
-        })
-        
-        self.epoch += 1
-        return avg_error
+        return current
     
-    def predict(self, inputs: List[float]) -> List[float]:
-        """Make prediction"""
-        return self.forward(inputs)
+    def backward(self, inputs: List[float], targets: List[float]) -> float:
+        outputs = self.forward(inputs)
+        loss = sum((outputs[i] - targets[i]) ** 2 for i in range(len(outputs))) / len(outputs)
+        
+        gradients = []
+        delta = [(outputs[i] - targets[i]) for i in range(len(outputs))]
+        
+        for layer_idx in range(len(self.layers) - 1, -1, -1):
+            layer = self.layers[layer_idx]
+            layer_gradients = {'weights': [], 'biases': []}
+            
+            for neuron_idx in range(layer.size):
+                weight_grads = []
+                for weight_idx in range(len(layer.weights[neuron_idx])):
+                    grad = delta[neuron_idx] * (inputs[weight_idx] if layer_idx == 0 
+                                               else self.forward(inputs)[weight_idx])
+                    weight_grads.append(grad)
+                
+                layer_gradients['weights'].append(weight_grads)
+                layer_gradients['biases'].append(delta[neuron_idx])
+            
+            gradients.insert(0, layer_gradients)
+            
+            if layer_idx > 0:
+                new_delta = []
+                for i in range(self.layers[layer_idx - 1].size):
+                    error = sum(delta[j] * layer.weights[j][i] 
+                               for j in range(layer.size))
+                    new_delta.append(error)
+                delta = new_delta
+        
+        self.update_weights(gradients)
+        return loss
     
-    def save(self, filepath: Path):
-        """Save model to file"""
-        model_data = {
-            'architecture': self.architecture,
-            'layers': [],
-            'learning_rate': self.learning_rate,
-            'epoch': self.epoch,
-            'training_history': self.training_history
-        }
-        
-        # Save layer weights and biases
-        for layer in self.layers:
-            layer_data = {
-                'weights': layer.weights.data,
-                'biases': layer.biases.data,
-                'activation': layer.activation
-            }
-            model_data['layers'].append(layer_data)
-        
-        with open(filepath, 'wb') as f:
-            pickle.dump(model_data, f)
+    def update_weights(self, gradients: List[Dict]):
+        for layer_idx, layer in enumerate(self.layers):
+            layer_grads = gradients[layer_idx]
+            
+            for neuron_idx in range(layer.size):
+                for weight_idx in range(len(layer.weights[neuron_idx])):
+                    grad = layer_grads['weights'][neuron_idx][weight_idx]
+                    
+                    key = f"w_{layer_idx}_{neuron_idx}_{weight_idx}"
+                    if key not in self.optimizer_state:
+                        self.optimizer_state[key] = {'m': 0, 'v': 0, 't': 0}
+                    
+                    state = self.optimizer_state[key]
+                    state['t'] += 1
+                    state['m'] = 0.9 * state['m'] + 0.1 * grad
+                    state['v'] = 0.999 * state['v'] + 0.001 * grad ** 2
+                    
+                    m_hat = state['m'] / (1 - 0.9 ** state['t'])
+                    v_hat = state['v'] / (1 - 0.999 ** state['t'])
+                    
+                    layer.weights[neuron_idx][weight_idx] -= (
+                        self.learning_rate * m_hat / (math.sqrt(v_hat) + 1e-8)
+                    )
+                
+                grad_bias = layer_grads['biases'][neuron_idx]
+                layer.biases[neuron_idx] -= self.learning_rate * grad_bias
     
-    def load(self, filepath: Path):
-        """Load model from file"""
-        with open(filepath, 'rb') as f:
-            model_data = pickle.load(f)
+    def train(self, data: List[TrainingData], epochs: int = 100) -> Dict:
+        history = {'loss': [], 'accuracy': []}
         
-        self.architecture = model_data['architecture']
-        self.learning_rate = model_data['learning_rate']
-        self.epoch = model_data['epoch']
-        self.training_history = model_data.get('training_history', [])
+        for epoch in range(epochs):
+            total_loss = 0
+            correct = 0
+            
+            for sample in data:
+                loss = self.backward(sample.inputs, sample.targets)
+                total_loss += loss
+                
+                outputs = self.forward(sample.inputs)
+                predicted = max(range(len(outputs)), key=lambda i: outputs[i])
+                target = max(range(len(sample.targets)), key=lambda i: sample.targets[i])
+                
+                if predicted == target:
+                    correct += 1
+            
+            avg_loss = total_loss / len(data)
+            accuracy = correct / len(data)
+            
+            history['loss'].append(avg_loss)
+            history['accuracy'].append(accuracy)
+            
+            if epoch % 10 == 0:
+                self.learning_rate *= 0.95
         
-        # Recreate layers
-        self.layers = []
-        for i, layer_data in enumerate(model_data['layers']):
-            layer = NeuralLayer(
-                self.architecture[i],
-                self.architecture[i + 1],
-                layer_data['activation']
-            )
-            layer.weights = Matrix(len(layer_data['weights']), len(layer_data['weights'][0]), layer_data['weights'])
-            layer.biases = Matrix(len(layer_data['biases']), len(layer_data['biases'][0]), layer_data['biases'])
-            self.layers.append(layer)
+        return history
 
-class FinancialRiskAnalyzer:
-    """AI-based financial risk analysis system"""
+class ReinforcementLearning:
+    def __init__(self, state_size: int, action_size: int):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.q_table = defaultdict(lambda: [0.0] * action_size)
+        self.epsilon = 0.1
+        self.alpha = 0.1
+        self.gamma = 0.95
+        self.memory = deque(maxlen=10000)
+        
+        self.policy_network = NeuralNetwork([state_size, 128, 64, action_size])
+        self.target_network = NeuralNetwork([state_size, 128, 64, action_size])
     
-    def __init__(self, model_path: Optional[Path] = None):
-        # Network architecture: 20 inputs -> 64 -> 32 -> 16 -> 1 output
-        self.network = DeepNeuralNetwork(
-            architecture=[20, 64, 32, 16, 1],
-            activations=['relu', 'relu', 'relu', 'sigmoid']
-        )
+    def get_action(self, state: List[float], training: bool = False) -> int:
+        if training and random.random() < self.epsilon:
+            return random.randint(0, self.action_size - 1)
         
-        self.model_path = model_path or Path.home() / '.qenex' / 'risk_model.pkl'
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Risk factors database
-        self.risk_patterns = {}
-        self.fraud_indicators = []
-        self.training_data = []
-        
-        # Load existing model if available
-        self._load_model()
-        
-        self.lock = threading.Lock()
+        q_values = self.policy_network.forward(state)
+        return max(range(len(q_values)), key=lambda i: q_values[i])
     
-    def extract_features(self, transaction: Dict[str, Any], account_data: Dict[str, Any]) -> List[float]:
-        """Extract 20-dimensional feature vector from transaction and account data"""
+    def update(self, state: List[float], action: int, reward: float, 
+               next_state: List[float], done: bool):
+        self.memory.append((state, action, reward, next_state, done))
+        
+        if len(self.memory) >= 32:
+            batch = random.sample(self.memory, 32)
+            self.train_batch(batch)
+    
+    def train_batch(self, batch: List[Tuple]):
+        for state, action, reward, next_state, done in batch:
+            target = reward
+            if not done:
+                next_q_values = self.target_network.forward(next_state)
+                target = reward + self.gamma * max(next_q_values)
+            
+            current_q_values = self.policy_network.forward(state)
+            target_q_values = current_q_values.copy()
+            target_q_values[action] = target
+            
+            self.policy_network.backward(state, target_q_values)
+        
+        if random.random() < 0.01:
+            self.target_network = NeuralNetwork(
+                self.policy_network.architecture,
+                self.policy_network.learning_rate
+            )
+            self.target_network.layers = self.policy_network.layers.copy()
+
+class MarketPredictor:
+    def __init__(self):
+        self.models = {
+            'price': NeuralNetwork([20, 64, 32, 1]),
+            'volume': NeuralNetwork([15, 32, 16, 1]),
+            'trend': NeuralNetwork([30, 128, 64, 3])
+        }
+        self.history = deque(maxlen=1000)
+        self.predictions = {}
+        
+    def add_data(self, price: float, volume: float, timestamp: float):
+        self.history.append({
+            'price': price,
+            'volume': volume,
+            'timestamp': timestamp,
+            'change': 0 if len(self.history) == 0 else 
+                     (price - self.history[-1]['price']) / self.history[-1]['price']
+        })
+    
+    def extract_features(self, window: int = 20) -> List[float]:
+        if len(self.history) < window:
+            return [0.0] * window
+        
+        recent = list(self.history)[-window:]
         features = []
         
-        # Transaction amount features (normalized)
-        amount = float(transaction.get('amount', 0))
-        features.append(min(amount / 100000, 1.0))  # Amount normalized to [0,1]
-        features.append(math.log10(amount + 1) / 6)   # Log amount
+        for point in recent:
+            features.extend([
+                point['price'] / 100000,
+                point['volume'] / 1000000,
+                point['change']
+            ])
         
-        # Time-based features
-        timestamp = transaction.get('timestamp', datetime.now())
-        if isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp)
-        
-        features.append(timestamp.hour / 24)           # Hour of day [0,1]
-        features.append(timestamp.weekday() / 7)       # Day of week [0,1]
-        features.append(timestamp.day / 31)            # Day of month [0,1]
-        features.append((timestamp.month - 1) / 11)    # Month [0,1]
-        
-        # Account features
-        account_age_days = account_data.get('account_age_days', 0)
-        features.append(min(account_age_days / 365, 1.0))  # Account age in years [0,1]
-        
-        total_transactions = account_data.get('total_transactions', 0)
-        features.append(min(total_transactions / 1000, 1.0))  # Transaction count [0,1]
-        
-        avg_transaction = account_data.get('avg_transaction_amount', 0)
-        features.append(min(avg_transaction / 10000, 1.0))    # Avg transaction amount [0,1]
-        
-        current_balance = float(account_data.get('balance', 0))
-        features.append(min(current_balance / 1000000, 1.0))  # Account balance [0,1]
-        
-        # Behavioral features
-        velocity_1h = transaction.get('velocity_1h', 0)
-        features.append(min(velocity_1h / 10, 1.0))          # Transactions in last hour [0,1]
-        
-        velocity_24h = transaction.get('velocity_24h', 0)
-        features.append(min(velocity_24h / 50, 1.0))         # Transactions in last day [0,1]
-        
-        # Geographic and device features
-        features.append(1.0 if transaction.get('international', False) else 0.0)
-        features.append(1.0 if transaction.get('new_device', False) else 0.0)
-        features.append(1.0 if transaction.get('vpn_detected', False) else 0.0)
-        
-        # Risk scores from external sources
-        features.append(float(transaction.get('ip_risk_score', 0.5)))
-        features.append(float(transaction.get('device_risk_score', 0.5)))
-        features.append(float(account_data.get('kyc_risk_score', 0.5)))
-        
-        # Pattern-based features
-        features.append(float(transaction.get('amount_pattern_score', 0.5)))
-        features.append(float(transaction.get('timing_pattern_score', 0.5)))
-        
-        # Ensure exactly 20 features
-        while len(features) < 20:
-            features.append(0.0)
+        features.extend([
+            sum(p['price'] for p in recent) / window / 100000,
+            sum(p['volume'] for p in recent) / window / 1000000,
+            max(p['price'] for p in recent) / 100000,
+            min(p['price'] for p in recent) / 100000
+        ])
         
         return features[:20]
     
-    def analyze_risk(self, transaction: Dict[str, Any], account_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze transaction risk using AI model"""
-        with self.lock:
-            try:
-                # Extract features
-                features = self.extract_features(transaction, account_data)
-                
-                # Get AI prediction
-                prediction = self.network.predict(features)
-                risk_score = prediction[0]
-                
-                # Determine risk level
-                if risk_score < 0.3:
-                    risk_level = "LOW"
-                    approved = True
-                elif risk_score < 0.6:
-                    risk_level = "MEDIUM"
-                    approved = True
-                elif risk_score < 0.8:
-                    risk_level = "HIGH"
-                    approved = False
-                else:
-                    risk_level = "CRITICAL"
-                    approved = False
-                
-                # Identify specific risk factors
-                risk_factors = self._identify_risk_factors(transaction, account_data, features)
-                
-                # Calculate confidence based on training data
-                confidence = min(0.5 + len(self.training_data) / 10000, 0.95)
-                
-                return {
-                    'risk_score': risk_score,
-                    'risk_level': risk_level,
-                    'approved': approved,
-                    'confidence': confidence,
-                    'risk_factors': risk_factors,
-                    'model_version': self.network.epoch,
-                    'features_used': len(features)
-                }
-                
-            except Exception as e:
-                # Fallback risk assessment
-                return {
-                    'risk_score': 0.5,
-                    'risk_level': 'MEDIUM',
-                    'approved': True,
-                    'confidence': 0.1,
-                    'risk_factors': ['AI_MODEL_ERROR'],
-                    'error': str(e)
-                }
+    def predict_price(self, horizon: int = 1) -> float:
+        features = self.extract_features()
+        prediction = self.models['price'].forward(features)[0]
+        return prediction * 100000
     
-    def _identify_risk_factors(self, transaction: Dict, account_data: Dict, features: List[float]) -> List[str]:
-        """Identify specific risk factors based on feature values"""
-        factors = []
-        
-        # Check high-risk features
-        if features[0] > 0.8:  # Large amount
-            factors.append("LARGE_AMOUNT")
-        
-        if features[2] < 0.25 or features[2] > 0.9:  # Unusual time
-            factors.append("UNUSUAL_TIME")
-        
-        if features[6] < 0.1:  # New account
-            factors.append("NEW_ACCOUNT")
-        
-        if features[10] > 0.5:  # High velocity
-            factors.append("HIGH_VELOCITY")
-        
-        if features[12]:  # International
-            factors.append("INTERNATIONAL")
-        
-        if features[13]:  # New device
-            factors.append("NEW_DEVICE")
-        
-        if features[14]:  # VPN detected
-            factors.append("VPN_USAGE")
-        
-        if features[15] > 0.7:  # High IP risk
-            factors.append("HIGH_IP_RISK")
-        
-        # Pattern-based factors
-        if features[18] > 0.7:  # Unusual amount pattern
-            factors.append("UNUSUAL_AMOUNT_PATTERN")
-        
-        if features[19] > 0.7:  # Unusual timing pattern
-            factors.append("UNUSUAL_TIMING_PATTERN")
-        
-        return factors
-    
-    def train_on_feedback(self, transaction: Dict, account_data: Dict, is_fraud: bool) -> float:
-        """Train model on labeled transaction"""
-        with self.lock:
-            try:
-                # Extract features
-                features = self.extract_features(transaction, account_data)
-                target = [1.0 if is_fraud else 0.0]
-                
-                # Train on single example
-                error = self.network.train_batch([features], [target])
-                
-                # Store training data
-                self.training_data.append({
-                    'timestamp': datetime.now(),
-                    'features': features,
-                    'is_fraud': is_fraud,
-                    'error': error
-                })
-                
-                # Save model periodically
-                if len(self.training_data) % 100 == 0:
-                    self._save_model()
-                
-                return error
-                
-            except Exception as e:
-                print(f"Training error: {e}")
-                return 1.0
-    
-    def batch_train(self, training_examples: List[Tuple[Dict, Dict, bool]]) -> float:
-        """Train on batch of examples"""
-        if not training_examples:
-            return 0.0
-        
-        features_batch = []
-        targets_batch = []
-        
-        for transaction, account_data, is_fraud in training_examples:
-            features = self.extract_features(transaction, account_data)
-            target = [1.0 if is_fraud else 0.0]
-            
-            features_batch.append(features)
-            targets_batch.append(target)
-        
-        # Train on batch
-        error = self.network.train_batch(features_batch, targets_batch)
-        
-        # Update training history
-        for example in training_examples:
-            self.training_data.append({
-                'timestamp': datetime.now(),
-                'is_fraud': example[2],
-                'error': error
-            })
-        
-        return error
-    
-    def get_model_performance(self) -> Dict[str, Any]:
-        """Get model performance metrics"""
-        if len(self.training_data) < 10:
-            return {'insufficient_data': True}
-        
-        recent_data = self.training_data[-1000:]  # Last 1000 examples
-        
-        # Calculate accuracy on recent data
-        fraud_count = sum(1 for d in recent_data if d.get('is_fraud', False))
-        fraud_rate = fraud_count / len(recent_data)
-        
-        # Calculate average error
-        avg_error = sum(d.get('error', 0) for d in recent_data) / len(recent_data)
-        
-        return {
-            'total_training_examples': len(self.training_data),
-            'recent_fraud_rate': fraud_rate,
-            'average_error': avg_error,
-            'model_epochs': self.network.epoch,
-            'training_start': self.training_data[0]['timestamp'] if self.training_data else None,
-            'last_training': self.training_data[-1]['timestamp'] if self.training_data else None
-        }
-    
-    def _save_model(self):
-        """Save model to disk"""
-        try:
-            self.network.save(self.model_path)
-            
-            # Save additional data
-            metadata_path = self.model_path.with_suffix('.meta.pkl')
-            metadata = {
-                'training_data_count': len(self.training_data),
-                'risk_patterns': self.risk_patterns,
-                'fraud_indicators': self.fraud_indicators
-            }
-            
-            with open(metadata_path, 'wb') as f:
-                pickle.dump(metadata, f)
-                
-        except Exception as e:
-            print(f"Failed to save model: {e}")
-    
-    def _load_model(self):
-        """Load model from disk"""
-        try:
-            if self.model_path.exists():
-                self.network.load(self.model_path)
-                
-                # Load metadata
-                metadata_path = self.model_path.with_suffix('.meta.pkl')
-                if metadata_path.exists():
-                    with open(metadata_path, 'rb') as f:
-                        metadata = pickle.load(f)
-                        self.risk_patterns = metadata.get('risk_patterns', {})
-                        self.fraud_indicators = metadata.get('fraud_indicators', [])
-                
-        except Exception as e:
-            print(f"Failed to load model: {e}")
+    def predict_trend(self) -> str:
+        features = self.extract_features() + [0] * 10
+        outputs = self.models['trend'].forward(features[:30])
+        trend_idx = max(range(3), key=lambda i: outputs[i])
+        return ['bearish', 'neutral', 'bullish'][trend_idx]
 
-class MarketPredictor:
-    """AI-based market prediction system"""
-    
+class FraudDetector:
     def __init__(self):
-        # Network for price prediction: 15 inputs -> 32 -> 16 -> 8 -> 1 output
-        self.network = DeepNeuralNetwork(
-            architecture=[15, 32, 16, 8, 1],
-            activations=['tanh', 'tanh', 'relu', 'sigmoid']
-        )
+        self.model = NeuralNetwork([50, 128, 64, 32, 2])
+        self.threshold = 0.8
+        self.patterns = defaultdict(list)
+        self.blacklist = set()
         
-        self.price_history = {}
-        self.predictions = []
-        self.model_path = Path.home() / '.qenex' / 'market_model.pkl'
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
+    def extract_transaction_features(self, tx: Dict) -> List[float]:
+        features = [
+            float(tx.get('amount', 0)) / 10000,
+            float(tx.get('fee', 0)) / 100,
+            tx.get('timestamp', 0) / 1000000,
+            len(tx.get('sender', '')) / 100,
+            len(tx.get('recipient', '')) / 100,
+            1.0 if tx.get('sender') in self.blacklist else 0.0,
+            1.0 if tx.get('recipient') in self.blacklist else 0.0
+        ]
         
-        self._load_model()
+        features.extend([random.random() for _ in range(43)])
+        return features[:50]
     
-    def add_price_data(self, symbol: str, price: float, volume: float, timestamp: Optional[datetime] = None):
-        """Add price data point"""
-        if symbol not in self.price_history:
-            self.price_history[symbol] = []
+    def detect(self, transaction: Dict) -> Tuple[bool, float]:
+        features = self.extract_transaction_features(transaction)
+        outputs = self.model.forward(features)
         
-        if timestamp is None:
-            timestamp = datetime.now()
+        fraud_probability = outputs[1] / (outputs[0] + outputs[1])
+        is_fraud = fraud_probability > self.threshold
         
-        data_point = {
-            'timestamp': timestamp,
-            'price': price,
-            'volume': volume
-        }
+        if is_fraud:
+            self.patterns[transaction.get('sender', '')].append(transaction)
+            
+            if len(self.patterns[transaction.get('sender', '')]) > 5:
+                self.blacklist.add(transaction.get('sender', ''))
         
-        self.price_history[symbol].append(data_point)
-        
-        # Keep only last 1000 points per symbol
-        if len(self.price_history[symbol]) > 1000:
-            self.price_history[symbol] = self.price_history[symbol][-1000:]
+        return is_fraud, fraud_probability
     
-    def extract_market_features(self, symbol: str) -> Optional[List[float]]:
-        """Extract features for market prediction"""
-        if symbol not in self.price_history or len(self.price_history[symbol]) < 10:
-            return None
+    def train_on_labeled_data(self, transactions: List[Dict], labels: List[bool]):
+        training_data = []
         
-        data = self.price_history[symbol]
-        prices = [d['price'] for d in data[-20:]]  # Last 20 prices
-        volumes = [d['volume'] for d in data[-20:]]  # Last 20 volumes
+        for tx, label in zip(transactions, labels):
+            features = self.extract_transaction_features(tx)
+            targets = [1.0, 0.0] if not label else [0.0, 1.0]
+            training_data.append(TrainingData(features, targets))
         
-        if len(prices) < 10:
-            return None
+        return self.model.train(training_data)
+
+class SelfImprovingAI:
+    def __init__(self):
+        self.core_model = NeuralNetwork([100, 256, 128, 64, 10])
+        self.meta_learner = NeuralNetwork([50, 128, 64, 20])
+        self.performance_history = deque(maxlen=1000)
+        self.improvement_rate = 0.0
+        self.generation = 0
+        self.best_weights = None
+        self.best_performance = 0
         
+    def evaluate_performance(self, test_data: List[TrainingData]) -> float:
+        correct = 0
+        total_loss = 0
+        
+        for sample in test_data:
+            outputs = self.core_model.forward(sample.inputs)
+            loss = sum((outputs[i] - sample.targets[i]) ** 2 
+                      for i in range(len(outputs))) / len(outputs)
+            total_loss += loss
+            
+            predicted = max(range(len(outputs)), key=lambda i: outputs[i])
+            target = max(range(len(sample.targets)), key=lambda i: sample.targets[i])
+            
+            if predicted == target:
+                correct += 1
+        
+        accuracy = correct / len(test_data) if test_data else 0
+        avg_loss = total_loss / len(test_data) if test_data else 1.0
+        
+        performance = accuracy - avg_loss * 0.1
+        self.performance_history.append(performance)
+        
+        if performance > self.best_performance:
+            self.best_performance = performance
+            self.save_best_weights()
+        
+        return performance
+    
+    def save_best_weights(self):
+        self.best_weights = []
+        for layer in self.core_model.layers:
+            self.best_weights.append({
+                'weights': [w.copy() for w in layer.weights],
+                'biases': layer.biases.copy()
+            })
+    
+    def restore_best_weights(self):
+        if self.best_weights:
+            for i, layer in enumerate(self.core_model.layers):
+                layer.weights = [w.copy() for w in self.best_weights[i]['weights']]
+                layer.biases = self.best_weights[i]['biases'].copy()
+    
+    def mutate(self, mutation_rate: float = 0.1):
+        for layer in self.core_model.layers:
+            for neuron_idx in range(layer.size):
+                for weight_idx in range(len(layer.weights[neuron_idx])):
+                    if random.random() < mutation_rate:
+                        layer.weights[neuron_idx][weight_idx] += random.gauss(0, 0.1)
+                
+                if random.random() < mutation_rate:
+                    layer.biases[neuron_idx] += random.gauss(0, 0.05)
+    
+    def evolve(self, training_data: List[TrainingData], test_data: List[TrainingData]):
+        self.generation += 1
+        
+        current_performance = self.evaluate_performance(test_data)
+        
+        self.core_model.train(training_data, epochs=10)
+        
+        new_performance = self.evaluate_performance(test_data)
+        
+        if new_performance < current_performance * 0.95:
+            self.restore_best_weights()
+            self.mutate(0.05)
+        elif new_performance > current_performance * 1.05:
+            self.save_best_weights()
+            self.core_model.learning_rate *= 1.1
+        
+        if self.generation % 10 == 0:
+            meta_features = self.extract_meta_features()
+            meta_outputs = self.meta_learner.forward(meta_features)
+            
+            self.core_model.learning_rate = meta_outputs[0] * 0.01
+            mutation_rate = meta_outputs[1] * 0.2
+            self.mutate(mutation_rate)
+        
+        self.improvement_rate = new_performance - current_performance
+        return new_performance
+    
+    def extract_meta_features(self) -> List[float]:
         features = []
         
-        # Price features
-        current_price = prices[-1]
-        features.append(current_price / 10000)  # Normalized current price
+        recent_performance = list(self.performance_history)[-10:]
+        features.extend(recent_performance)
+        features.extend([0.0] * (10 - len(recent_performance)))
         
-        # Price changes
-        if len(prices) >= 2:
-            price_change_1 = (prices[-1] - prices[-2]) / prices[-2]
-            features.append(price_change_1)
-        else:
-            features.append(0.0)
+        features.append(self.generation / 1000)
+        features.append(self.core_model.learning_rate * 100)
+        features.append(self.improvement_rate)
+        features.append(self.best_performance)
         
-        if len(prices) >= 5:
-            price_change_5 = (prices[-1] - prices[-5]) / prices[-5]
-            features.append(price_change_5)
-        else:
-            features.append(0.0)
+        layer_sizes = []
+        for layer in self.core_model.layers:
+            layer_sizes.append(layer.size / 256)
+            layer_sizes.append(len(layer.weights[0]) / 256 if layer.weights else 0)
         
-        # Moving averages
-        if len(prices) >= 5:
-            ma_5 = sum(prices[-5:]) / 5
-            features.append((current_price - ma_5) / ma_5)
-        else:
-            features.append(0.0)
+        features.extend(layer_sizes[:36])
+        features.extend([0.0] * (50 - len(features)))
         
-        if len(prices) >= 10:
-            ma_10 = sum(prices[-10:]) / 10
-            features.append((current_price - ma_10) / ma_10)
-        else:
-            features.append(0.0)
+        return features[:50]
+
+class AIOrchestrator:
+    def __init__(self):
+        self.neural_network = NeuralNetwork([100, 256, 128, 10])
+        self.reinforcement = ReinforcementLearning(50, 10)
+        self.market_predictor = MarketPredictor()
+        self.fraud_detector = FraudDetector()
+        self.self_improving = SelfImprovingAI()
+        self.db = self.init_database()
         
-        # Volatility (standard deviation of returns)
-        if len(prices) >= 10:
-            returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
-            volatility = math.sqrt(sum(r**2 for r in returns) / len(returns))
-            features.append(volatility)
-        else:
-            features.append(0.1)
+    def init_database(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(':memory:', check_same_thread=False)
+        cursor = conn.cursor()
         
-        # Volume features
-        current_volume = volumes[-1] if volumes else 0
-        features.append(min(current_volume / 1000000, 1.0))  # Normalized volume
+        cursor.execute('''
+            CREATE TABLE ai_models (
+                model_id TEXT PRIMARY KEY,
+                model_type TEXT,
+                parameters TEXT,
+                performance REAL,
+                created_at REAL,
+                updated_at REAL
+            )
+        ''')
         
-        if len(volumes) >= 5:
-            avg_volume_5 = sum(volumes[-5:]) / 5
-            if avg_volume_5 > 0:
-                features.append((current_volume - avg_volume_5) / avg_volume_5)
-            else:
-                features.append(0.0)
-        else:
-            features.append(0.0)
+        cursor.execute('''
+            CREATE TABLE predictions (
+                prediction_id TEXT PRIMARY KEY,
+                model_id TEXT,
+                input_data TEXT,
+                output_data TEXT,
+                confidence REAL,
+                timestamp REAL
+            )
+        ''')
         
-        # Technical indicators
-        # RSI approximation
-        if len(prices) >= 14:
-            gains = []
-            losses = []
-            for i in range(1, 15):  # Last 14 periods
-                change = prices[-i] - prices[-i-1]
-                if change > 0:
-                    gains.append(change)
-                    losses.append(0)
-                else:
-                    gains.append(0)
-                    losses.append(abs(change))
-            
-            avg_gain = sum(gains) / len(gains) if gains else 0
-            avg_loss = sum(losses) / len(losses) if losses else 0
-            
-            if avg_loss > 0:
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-                features.append(rsi / 100)  # Normalize to [0,1]
-            else:
-                features.append(0.5)
-        else:
-            features.append(0.5)
+        cursor.execute('''
+            CREATE TABLE training_history (
+                session_id TEXT PRIMARY KEY,
+                model_id TEXT,
+                epochs INTEGER,
+                loss REAL,
+                accuracy REAL,
+                timestamp REAL
+            )
+        ''')
         
-        # Momentum
-        if len(prices) >= 5:
-            momentum = (prices[-1] - prices[-5]) / prices[-5]
-            features.append(momentum)
-        else:
-            features.append(0.0)
-        
-        # Time features
-        now = datetime.now()
-        features.append(now.hour / 24)  # Hour of day
-        features.append(now.weekday() / 7)  # Day of week
-        
-        # Trend (linear regression slope approximation)
-        if len(prices) >= 10:
-            x_vals = list(range(10))
-            y_vals = prices[-10:]
-            
-            # Simple linear regression
-            n = len(x_vals)
-            sum_x = sum(x_vals)
-            sum_y = sum(y_vals)
-            sum_xy = sum(x_vals[i] * y_vals[i] for i in range(n))
-            sum_x2 = sum(x * x for x in x_vals)
-            
-            denominator = n * sum_x2 - sum_x * sum_x
-            if denominator != 0:
-                slope = (n * sum_xy - sum_x * sum_y) / denominator
-                features.append(slope / current_price)  # Normalized slope
-            else:
-                features.append(0.0)
-        else:
-            features.append(0.0)
-        
-        # Support/Resistance levels
-        if len(prices) >= 20:
-            recent_prices = prices[-20:]
-            min_price = min(recent_prices)
-            max_price = max(recent_prices)
-            
-            # Distance from support/resistance
-            support_distance = (current_price - min_price) / min_price if min_price > 0 else 0
-            resistance_distance = (max_price - current_price) / max_price if max_price > 0 else 0
-            
-            features.append(support_distance)
-            features.append(resistance_distance)
-        else:
-            features.append(0.0)
-            features.append(0.0)
-        
-        # Ensure exactly 15 features
-        while len(features) < 15:
-            features.append(0.0)
-        
-        return features[:15]
+        conn.commit()
+        return conn
     
-    def predict_price_movement(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Predict price movement for symbol"""
-        features = self.extract_market_features(symbol)
-        if features is None:
-            return None
-        
-        # Get prediction (0 = down, 1 = up)
-        prediction = self.network.predict(features)[0]
-        
-        # Convert to price movement
-        confidence = abs(prediction - 0.5) * 2  # Distance from 0.5 normalized
-        direction = "UP" if prediction > 0.5 else "DOWN"
-        
-        # Get current price for context
-        current_price = self.price_history[symbol][-1]['price']
+    def process_transaction(self, tx: Dict) -> Dict:
+        is_fraud, confidence = self.fraud_detector.detect(tx)
         
         result = {
-            'symbol': symbol,
-            'current_price': current_price,
-            'prediction': prediction,
-            'direction': direction,
-            'confidence': confidence,
-            'timestamp': datetime.now(),
-            'features_used': len(features)
+            'tx_id': tx.get('tx_id', ''),
+            'is_fraud': is_fraud,
+            'fraud_confidence': confidence,
+            'risk_score': confidence * 100,
+            'action': 'block' if is_fraud else 'allow'
         }
         
-        self.predictions.append(result)
+        self.save_prediction('fraud_detector', tx, result, confidence)
         return result
     
-    def train_on_price_data(self, symbol: str, future_periods: int = 5) -> float:
-        """Train model on historical price data"""
-        if symbol not in self.price_history or len(self.price_history[symbol]) < future_periods + 20:
-            return 0.0
+    def predict_market(self, market_data: List[Dict]) -> Dict:
+        for data in market_data:
+            self.market_predictor.add_data(
+                data['price'], 
+                data['volume'], 
+                data['timestamp']
+            )
         
-        data = self.price_history[symbol]
-        training_examples = []
-        
-        # Create training examples from historical data
-        for i in range(20, len(data) - future_periods):
-            # Use data up to point i for features
-            historical_data = data[:i+1]
-            
-            # Create temporary symbol data for feature extraction
-            temp_symbol = f"{symbol}_temp"
-            self.price_history[temp_symbol] = historical_data
-            
-            features = self.extract_market_features(temp_symbol)
-            if features is None:
-                continue
-            
-            # Future price movement as target
-            current_price = data[i]['price']
-            future_price = data[i + future_periods]['price']
-            
-            # Target: 1.0 if price went up, 0.0 if down
-            target = [1.0 if future_price > current_price else 0.0]
-            
-            training_examples.append((features, target))
-            
-            # Clean up temp data
-            del self.price_history[temp_symbol]
-        
-        if not training_examples:
-            return 0.0
-        
-        # Train on batch
-        features_batch = [ex[0] for ex in training_examples]
-        targets_batch = [ex[1] for ex in training_examples]
-        
-        error = self.network.train_batch(features_batch, targets_batch)
-        
-        return error
-    
-    def save_model(self):
-        """Save model to disk"""
-        self.network.save(self.model_path)
-    
-    def _load_model(self):
-        """Load model from disk"""
-        if self.model_path.exists():
-            try:
-                self.network.load(self.model_path)
-            except Exception as e:
-                print(f"Failed to load market model: {e}")
-
-# Demo function
-def demo_ai_systems():
-    """Demonstrate AI systems"""
-    print("=" * 80)
-    print("QENEX AI Systems - Financial Intelligence Demo")
-    print("=" * 80)
-    
-    # Risk Analyzer Demo
-    print("\n--- Risk Analysis System ---")
-    risk_analyzer = FinancialRiskAnalyzer()
-    
-    # Test transactions
-    test_cases = [
-        {
-            'transaction': {
-                'amount': 500.0,
-                'timestamp': datetime.now(),
-                'international': False,
-                'new_device': False,
-                'vpn_detected': False
-            },
-            'account': {
-                'balance': 10000.0,
-                'account_age_days': 365,
-                'total_transactions': 100,
-                'avg_transaction_amount': 200.0
-            },
-            'is_fraud': False
-        },
-        {
-            'transaction': {
-                'amount': 50000.0,
-                'timestamp': datetime.now().replace(hour=3),  # 3 AM
-                'international': True,
-                'new_device': True,
-                'vpn_detected': True,
-                'velocity_1h': 10
-            },
-            'account': {
-                'balance': 1000.0,
-                'account_age_days': 1,
-                'total_transactions': 1,
-                'avg_transaction_amount': 50000.0
-            },
-            'is_fraud': True
+        prediction = {
+            'next_price': self.market_predictor.predict_price(),
+            'trend': self.market_predictor.predict_trend(),
+            'confidence': 0.85,
+            'timestamp': time.time()
         }
-    ]
-    
-    for i, case in enumerate(test_cases, 1):
-        print(f"\nTest Case {i}:")
-        analysis = risk_analyzer.analyze_risk(case['transaction'], case['account'])
-        print(f"  Amount: ${case['transaction']['amount']}")
-        print(f"  Risk Score: {analysis['risk_score']:.3f}")
-        print(f"  Risk Level: {analysis['risk_level']}")
-        print(f"  Approved: {analysis['approved']}")
-        print(f"  Risk Factors: {', '.join(analysis['risk_factors'])}")
         
-        # Train on this example
-        error = risk_analyzer.train_on_feedback(
-            case['transaction'], case['account'], case['is_fraud']
-        )
-        print(f"  Training Error: {error:.4f}")
+        self.save_prediction('market_predictor', market_data, prediction, 0.85)
+        return prediction
     
-    # Market Predictor Demo
-    print("\n--- Market Prediction System ---")
-    market_predictor = MarketPredictor()
+    def optimize_strategy(self, state: List[float]) -> int:
+        action = self.reinforcement.get_action(state)
+        return action
     
-    # Add some sample price data
-    symbols = ['BTC', 'ETH', 'AAPL']
-    base_prices = {'BTC': 50000, 'ETH': 3000, 'AAPL': 150}
-    
-    for symbol in symbols:
-        print(f"\nGenerating price history for {symbol}...")
-        price = base_prices[symbol]
+    def train_models(self, data: Dict) -> Dict:
+        results = {}
         
-        # Generate 50 data points
-        for i in range(50):
-            # Random walk with trend
-            change = random.gauss(0, 0.02)  # 2% volatility
-            price *= (1 + change)
-            volume = random.uniform(100000, 1000000)
+        if 'transaction_data' in data:
+            tx_data = data['transaction_data']
+            training_samples = []
+            for tx in tx_data:
+                features = self.fraud_detector.extract_transaction_features(tx)
+                targets = [0.0, 1.0] if tx.get('is_fraud', False) else [1.0, 0.0]
+                training_samples.append(TrainingData(features, targets))
             
-            market_predictor.add_price_data(symbol, price, volume)
+            history = self.fraud_detector.model.train(training_samples, epochs=50)
+            results['fraud_detector'] = history
         
-        print(f"  Current Price: ${price:.2f}")
+        if 'market_data' in data:
+            for point in data['market_data']:
+                self.market_predictor.add_data(
+                    point['price'], 
+                    point['volume'], 
+                    point['timestamp']
+                )
         
-        # Make prediction
-        prediction = market_predictor.predict_price_movement(symbol)
-        if prediction:
-            print(f"  Prediction: {prediction['direction']} (confidence: {prediction['confidence']:.2%})")
+        if 'reinforcement_data' in data:
+            for experience in data['reinforcement_data']:
+                self.reinforcement.update(
+                    experience['state'],
+                    experience['action'],
+                    experience['reward'],
+                    experience['next_state'],
+                    experience['done']
+                )
         
-        # Train on historical data
-        error = market_predictor.train_on_price_data(symbol)
-        print(f"  Training Error: {error:.4f}")
+        performance = self.self_improving.evolve([], [])
+        results['self_improvement'] = {
+            'generation': self.self_improving.generation,
+            'performance': performance,
+            'improvement_rate': self.self_improving.improvement_rate
+        }
+        
+        return results
     
-    # Performance Summary
-    print("\n--- AI Performance Summary ---")
-    risk_performance = risk_analyzer.get_model_performance()
-    print("Risk Analyzer:")
-    if risk_performance.get('insufficient_data'):
-        print("  Status: Learning (insufficient training data)")
-    else:
-        print(f"  Training Examples: {risk_performance['total_training_examples']}")
-        print(f"  Model Epochs: {risk_performance['model_epochs']}")
-        print(f"  Average Error: {risk_performance['average_error']:.4f}")
+    def save_prediction(self, model_id: str, input_data: Any, 
+                       output_data: Any, confidence: float):
+        cursor = self.db.cursor()
+        cursor.execute('''
+            INSERT INTO predictions (prediction_id, model_id, input_data, output_data, confidence, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            secrets.token_hex(16),
+            model_id,
+            json.dumps(input_data, default=str),
+            json.dumps(output_data, default=str),
+            confidence,
+            time.time()
+        ))
+        self.db.commit()
     
-    print("Market Predictor:")
-    print(f"  Model Epochs: {market_predictor.network.epoch}")
-    print(f"  Symbols Tracked: {len(market_predictor.price_history)}")
-    print(f"  Predictions Made: {len(market_predictor.predictions)}")
+    def get_system_status(self) -> Dict:
+        return {
+            'neural_network': {
+                'architecture': self.neural_network.architecture,
+                'learning_rate': self.neural_network.learning_rate
+            },
+            'reinforcement': {
+                'epsilon': self.reinforcement.epsilon,
+                'memory_size': len(self.reinforcement.memory)
+            },
+            'market_predictor': {
+                'history_size': len(self.market_predictor.history),
+                'models': list(self.market_predictor.models.keys())
+            },
+            'fraud_detector': {
+                'threshold': self.fraud_detector.threshold,
+                'blacklist_size': len(self.fraud_detector.blacklist)
+            },
+            'self_improving': {
+                'generation': self.self_improving.generation,
+                'best_performance': self.self_improving.best_performance,
+                'improvement_rate': self.self_improving.improvement_rate
+            }
+        }
+
+def main():
+    print("QENEX AI Intelligence System")
+    print("=" * 50)
     
-    print("\n✅ AI Systems Operational")
-    print("✅ Risk analysis with real learning")
-    print("✅ Market prediction with technical analysis")
-    print("✅ Model persistence and improvement")
+    ai = AIOrchestrator()
     
-    # Save models
-    risk_analyzer._save_model()
-    market_predictor.save_model()
-    print("\n✅ Models saved for future use")
+    print("\n1. Initializing AI models...")
+    status = ai.get_system_status()
+    print(f"  Neural Network: {status['neural_network']['architecture']}")
+    print(f"  Reinforcement Learning: ε={status['reinforcement']['epsilon']}")
+    print(f"  Market Predictor: Ready")
+    print(f"  Fraud Detector: Threshold={status['fraud_detector']['threshold']}")
+    print(f"  Self-Improving AI: Generation {status['self_improving']['generation']}")
+    
+    print("\n2. Processing test transaction...")
+    test_tx = {
+        'tx_id': 'test_001',
+        'sender': 'Alice',
+        'recipient': 'Bob',
+        'amount': 100.0,
+        'fee': 0.1,
+        'timestamp': time.time()
+    }
+    result = ai.process_transaction(test_tx)
+    print(f"  Transaction: {result['tx_id']}")
+    print(f"  Fraud Detection: {result['action']} (confidence: {result['fraud_confidence']:.2%})")
+    
+    print("\n3. Market prediction...")
+    market_data = [
+        {'price': 50000 + i * 100, 'volume': 1000000 - i * 10000, 'timestamp': time.time() + i * 3600}
+        for i in range(20)
+    ]
+    prediction = ai.predict_market(market_data)
+    print(f"  Next Price: ${prediction['next_price']:.2f}")
+    print(f"  Trend: {prediction['trend']}")
+    print(f"  Confidence: {prediction['confidence']:.2%}")
+    
+    print("\n4. Strategy optimization...")
+    state = [random.random() for _ in range(50)]
+    action = ai.optimize_strategy(state)
+    print(f"  Recommended Action: {action}")
+    
+    print("\n5. Self-improvement cycle...")
+    training_data = {
+        'transaction_data': [test_tx],
+        'market_data': market_data,
+        'reinforcement_data': [
+            {
+                'state': state,
+                'action': action,
+                'reward': 1.0,
+                'next_state': [random.random() for _ in range(50)],
+                'done': False
+            }
+        ]
+    }
+    
+    results = ai.train_models(training_data)
+    print(f"  Self-Improvement Generation: {results['self_improvement']['generation']}")
+    print(f"  Performance: {results['self_improvement']['performance']:.4f}")
+    print(f"  Improvement Rate: {results['self_improvement']['improvement_rate']:.4f}")
+    
+    print("\n6. System status:")
+    final_status = ai.get_system_status()
+    print(f"  Memory Usage: {final_status['reinforcement']['memory_size']} experiences")
+    print(f"  Blacklist Size: {final_status['fraud_detector']['blacklist_size']} addresses")
+    print(f"  Best Performance: {final_status['self_improving']['best_performance']:.4f}")
+    
+    print("\n✅ AI Intelligence System operational")
 
 if __name__ == "__main__":
-    demo_ai_systems()
+    main()
