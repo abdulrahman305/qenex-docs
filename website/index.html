@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="QENEX - Enterprise-Grade Financial Operating System. Revolutionary blockchain-powered financial infrastructure with AI integration.">
+    <meta name="keywords" content="QENEX, Financial OS, Blockchain, DeFi, Cryptocurrency, Financial Technology">
+    <title>QENEX - Financial Operating System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f4c75;
+            --highlight: #3282b8;
+            --text: #bbe1fa;
+            --white: #ffffff;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--primary);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(187, 225, 250, 0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--highlight);
+        }
+        
+        .hero {
+            margin-top: 80px;
+            padding: 100px 0;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--text);
+            opacity: 0.9;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-1);
+            color: var(--white);
+        }
+        
+        .btn-secondary {
+            border: 2px solid var(--highlight);
+            color: var(--highlight);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .features {
+            padding: 80px 0;
+            background: var(--secondary);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .feature-card {
+            background: rgba(15, 76, 117, 0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid rgba(187, 225, 250, 0.1);
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            background: rgba(15, 76, 117, 0.2);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--highlight);
+        }
+        
+        .stats {
+            padding: 80px 0;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .stat-item {
+            padding: 2rem;
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label {
+            font-size: 1.2rem;
+            color: var(--text);
+            opacity: 0.8;
+        }
+        
+        .architecture {
+            padding: 80px 0;
+            background: var(--secondary);
+        }
+        
+        .architecture-diagram {
+            background: rgba(15, 76, 117, 0.1);
+            padding: 3rem;
+            border-radius: 15px;
+            margin-top: 2rem;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        
+        .roadmap {
+            padding: 80px 0;
+        }
+        
+        .timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 0;
+        }
+        
+        .timeline-item {
+            padding: 2rem;
+            background: rgba(15, 76, 117, 0.1);
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            border-left: 3px solid var(--highlight);
+        }
+        
+        .timeline-item h3 {
+            color: var(--highlight);
+            margin-bottom: 1rem;
+        }
+        
+        .footer {
+            padding: 40px 0;
+            background: var(--primary);
+            border-top: 1px solid rgba(187, 225, 250, 0.1);
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: var(--highlight);
+        }
+        
+        section h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        
+        .tech-badge {
+            background: rgba(15, 76, 117, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid var(--highlight);
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .hero {
+                padding: 50px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">QENEX</div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+                <li><a href="https://github.com/abdulrahman305/qenex-os">GitHub</a></li>
+                <li><a href="https://docs.qenex.ai">Documentation</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <section class="hero">
+        <div class="container">
+            <h1>QENEX Financial OS</h1>
+            <p class="subtitle">Enterprise-Grade Financial Infrastructure for the Digital Age</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/abdulrahman305/qenex-os" class="btn btn-primary">Get Started</a>
+                <a href="https://docs.qenex.ai" class="btn btn-secondary">Read Documentation</a>
+            </div>
+            <div class="tech-stack">
+                <span class="tech-badge">Blockchain</span>
+                <span class="tech-badge">AI-Powered</span>
+                <span class="tech-badge">Quantum-Resistant</span>
+                <span class="tech-badge">DeFi</span>
+                <span class="tech-badge">Cross-Platform</span>
+            </div>
+        </div>
+    </section>
+    
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Revolutionary Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🏦</div>
+                    <h3 class="feature-title">Complete Banking</h3>
+                    <p>Full-featured banking infrastructure with account management, payments, and settlement systems.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⛓️</div>
+                    <h3 class="feature-title">Blockchain Powered</h3>
+                    <p>High-performance distributed ledger with BFT consensus and smart contract capabilities.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI Integration</h3>
+                    <p>Advanced machine learning for risk assessment, fraud detection, and predictive analytics.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3 class="feature-title">Quantum Security</h3>
+                    <p>Post-quantum cryptography ensuring future-proof security for all transactions.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3 class="feature-title">DeFi Protocols</h3>
+                    <p>Comprehensive DeFi suite with lending, borrowing, staking, and yield farming.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <h3 class="feature-title">Global Compliance</h3>
+                    <p>Built-in KYC/AML, regulatory reporting, and multi-jurisdiction compliance.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="stats">
+        <div class="container">
+            <h2>Performance Metrics</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">10,000+</div>
+                    <div class="stat-label">TPS Throughput</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">&lt;100ms</div>
+                    <div class="stat-label">Transaction Latency</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">99.99%</div>
+                    <div class="stat-label">Uptime SLA</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">256-bit</div>
+                    <div class="stat-label">Encryption</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <h2>System Architecture</h2>
+            <div class="architecture-diagram">
+                <pre>
+┌─────────────────────────────────────────────┐
+│          QENEX FINANCIAL OS                 │
+├─────────────────────────────────────────────┤
+│                                             │
+│  ┌─────────────────────────────────────┐   │
+│  │     Application Service Layer        │   │
+│  │  • Banking  • DeFi  • Payments      │   │
+│  └──────────────┬──────────────────────┘   │
+│                 │                           │
+│  ┌──────────────┴──────────────────────┐   │
+│  │     Core Financial Engine           │   │
+│  │  • Transactions • Settlements       │   │
+│  └──────────────┬──────────────────────┘   │
+│                 │                           │
+│  ┌──────────────┴──────────────────────┐   │
+│  │     Blockchain Infrastructure       │   │
+│  │  • Consensus • Smart Contracts      │   │
+│  └──────────────┬──────────────────────┘   │
+│                 │                           │
+│  ┌──────────────┴──────────────────────┐   │
+│  │     Security & Compliance           │   │
+│  │  • Encryption • KYC/AML • Audit     │   │
+│  └─────────────────────────────────────┘   │
+│                                             │
+└─────────────────────────────────────────────┘
+                </pre>
+            </div>
+        </div>
+    </section>
+    
+    <section id="roadmap" class="roadmap">
+        <div class="container">
+            <h2>Development Roadmap</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h3>Q1 2024 - Foundation</h3>
+                    <p>✅ Core financial engine development</p>
+                    <p>✅ Blockchain implementation</p>
+                    <p>✅ Smart contract deployment</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Q2 2024 - Enhancement</h3>
+                    <p>⏳ Advanced DeFi protocols</p>
+                    <p>⏳ Mobile application launch</p>
+                    <p>⏳ Regulatory compliance expansion</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Q3 2024 - Integration</h3>
+                    <p>📅 Cross-chain bridges</p>
+                    <p>📅 AI-powered risk management</p>
+                    <p>📅 Institutional features</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Q4 2024 - Expansion</h3>
+                    <p>📅 Global market deployment</p>
+                    <p>📅 Advanced privacy features</p>
+                    <p>📅 Quantum-resistant upgrade</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-links">
+                <a href="https://github.com/abdulrahman305/qenex-os">GitHub</a>
+                <a href="https://docs.qenex.ai">Documentation</a>
+                <a href="https://api.qenex.ai">API</a>
+                <a href="mailto:support@qenex.ai">Support</a>
+                <a href="https://twitter.com/qenex_ai">Twitter</a>
+                <a href="https://discord.gg/qenex">Discord</a>
+            </div>
+            <p>&copy; 2024 QENEX. All rights reserved.</p>
+            <p>Building the future of financial infrastructure.</p>
+        </div>
+    </footer>
+</body>
+</html>

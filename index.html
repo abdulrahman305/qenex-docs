@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QENEX OS Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            color: #666;
+            margin-top: 10px;
+        }
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .nav {
+            display: flex;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        .nav a {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: transform 0.2s;
+        }
+        .nav a:hover {
+            transform: translateY(-2px);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-card h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>QENEX Unified AI OS</h1>
+            <div class="subtitle">Autonomous, Self-Healing Operating System with Advanced AI Capabilities</div>
+            <div class="nav">
+                <a href="#installation">Installation</a>
+                <a href="#features">Features</a>
+                <a href="#api">API Reference</a>
+                <a href="#architecture">Architecture</a>
+                <a href="https://github.com/abdulrahman305/qenex-os">GitHub</a>
+                <a href="https://qenex.ai">Main Site</a>
+            </div>
+        </header>
+
+        <div class="content">
+            <h2 id="overview">Overview</h2>
+            <p>QENEX OS is a revolutionary unified AI operating system that brings together autonomous operations, self-healing capabilities, and advanced artificial intelligence into a single, cohesive platform.</p>
+
+            <h2 id="installation">Quick Installation</h2>
+            <pre><code>curl -fsSL https://qenex.ai/install.sh | sudo bash</code></pre>
+            
+            <p>Or using Docker:</p>
+            <pre><code>docker run -d --name qenex-os -p 8080:8080 qenex/os:latest</code></pre>
+
+            <h2 id="features">Core Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🤖 AI-Powered</h3>
+                    <p>Advanced AI agents for autonomous decision-making and system optimization.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔧 Self-Healing</h3>
+                    <p>Automatically detects and repairs system issues without human intervention.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Real-time Analytics</h3>
+                    <p>Comprehensive monitoring and analytics with predictive insights.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔒 Zero-Trust Security</h3>
+                    <p>Advanced security architecture with continuous verification.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Auto-Scaling</h3>
+                    <p>Dynamic resource allocation based on demand.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌍 Distributed Mode</h3>
+                    <p>Scale across multiple nodes seamlessly.</p>
+                </div>
+            </div>
+
+            <h2 id="api">API Reference</h2>
+            <h3>System Status</h3>
+            <pre><code>GET /api/v1/status
+Response: {
+  "status": "running",
+  "version": "5.0.0",
+  "uptime": 3600,
+  "health": "healthy"
+}</code></pre>
+
+            <h3>Deploy Agent</h3>
+            <pre><code>POST /api/v1/agents/deploy
+Body: {
+  "agent_type": "monitor",
+  "config": {...}
+}</code></pre>
+
+            <h3>System Metrics</h3>
+            <pre><code>GET /api/v1/metrics
+Response: {
+  "cpu": 45.2,
+  "memory": 78.5,
+  "disk": 62.1
+}</code></pre>
+
+            <h2 id="architecture">Architecture</h2>
+            <p>QENEX OS is built on a microservices architecture with the following components:</p>
+            <ul>
+                <li><strong>Core Engine:</strong> Central orchestration and management</li>
+                <li><strong>AI Module:</strong> Machine learning and decision-making</li>
+                <li><strong>Security Layer:</strong> Zero-trust authentication and authorization</li>
+                <li><strong>Monitoring Stack:</strong> Real-time metrics and alerting</li>
+                <li><strong>API Gateway:</strong> RESTful API for external integration</li>
+                <li><strong>Storage Layer:</strong> Distributed data persistence</li>
+            </ul>
+
+            <h2>Configuration</h2>
+            <p>Main configuration file: <code>/etc/qenex/config.yaml</code></p>
+            <pre><code>system:
+  mode: production
+  auto_heal: true
+  ai_enabled: true
+  
+monitoring:
+  interval: 60
+  retention: 30d
+  
+api:
+  port: 8080
+  auth: true</code></pre>
+
+            <h2>Contributing</h2>
+            <p>We welcome contributions! Please see our <a href="https://github.com/abdulrahman305/qenex-os/blob/main/CONTRIBUTING.md">Contributing Guide</a> for details.</p>
+
+            <h2>Support</h2>
+            <p>For support, please open an issue on <a href="https://github.com/abdulrahman305/qenex-os/issues">GitHub</a> or contact us at support@qenex.ai</p>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 QENEX OS | Version 5.0.0 | <a href="https://github.com/abdulrahman305/qenex-os" style="color: white;">GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>
