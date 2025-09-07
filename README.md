@@ -1,6 +1,8 @@
-# QENEX Documentation v3.0
+# QENEX Documentation
 
-📚 **Complete Documentation** - Comprehensive guides, API documentation, and technical specifications for the QENEX Financial Operating System.
+## Complete Technical Documentation Hub
+
+Comprehensive documentation for the QENEX autonomous financial operating system, including architecture guides, API references, security specifications, and deployment instructions.
 
 ## 🗂️ Documentation Structure
 
