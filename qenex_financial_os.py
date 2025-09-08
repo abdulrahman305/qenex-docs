@@ -483,35 +483,74 @@ class FinancialDatabase:
         return None
     
     def update_account_balance(self, account_id: str, new_balance: Decimal, 
-                             version: Optional[int] = None) -> bool:
-        """Update account balance with optimistic locking"""
-        try:
-            with self.transaction() as conn:
-                # Check current version for optimistic locking
-                if version is not None:
+                             expected_version: Optional[int] = None,
+                             expected_balance: Optional[Decimal] = None) -> bool:
+        """Update account balance with enhanced optimistic locking and retry logic"""
+        max_retries = 5
+        retry_delay = 0.005  # 5ms initial delay
+        
+        for attempt in range(max_retries):
+            try:
+                with self.transaction() as conn:
+                    # Get current account state atomically
                     cursor = conn.execute('''
-                        SELECT version FROM accounts WHERE id = ?
+                        SELECT balance, version FROM accounts 
+                        WHERE id = ? AND status = 'ACTIVE'
                     ''', (account_id,))
                     
                     row = cursor.fetchone()
-                    if not row or row['version'] != version:
-                        raise TransactionError("Optimistic lock failed - account modified")
-                
-                # Update balance and increment version
-                cursor = conn.execute('''
-                    UPDATE accounts 
-                    SET balance = ?, updated_at = datetime('now'), version = version + 1
-                    WHERE id = ? AND status = 'ACTIVE'
-                ''', (str(new_balance), account_id))
-                
-                if cursor.rowcount == 0:
-                    raise TransactionError("Account not found or inactive")
-                
-                return True
-                
-        except Exception as e:
-            logger.error(f"Balance update failed: {e}")
-            return False
+                    if not row:
+                        raise TransactionError("Account not found or inactive")
+                    
+                    current_balance = Decimal(row[0]) if row[0] else Decimal('0')
+                    current_version = row[1] if row[1] is not None else 0
+                    
+                    # Optimistic locking check
+                    if expected_version is not None and current_version != expected_version:
+                        if attempt < max_retries - 1:
+                            # Log warning and retry with exponential backoff
+                            logger.warning(f"Version conflict for {account_id}: expected {expected_version}, "
+                                         f"got {current_version}. Retrying... (attempt {attempt + 1})")
+                            time.sleep(retry_delay * (1.5 ** attempt))
+                            continue
+                        else:
+                            raise TransactionError(f"Optimistic lock failed after {max_retries} attempts")
+                    
+                    # Balance validation check
+                    if expected_balance is not None and current_balance != expected_balance:
+                        raise TransactionError(f"Balance mismatch: expected {expected_balance}, got {current_balance}")
+                    
+                    # Atomic update with version-based optimistic locking
+                    cursor = conn.execute('''
+                        UPDATE accounts 
+                        SET balance = ?, 
+                            updated_at = datetime('now'), 
+                            version = version + 1
+                        WHERE id = ? AND status = 'ACTIVE' AND version = ?
+                    ''', (str(new_balance), account_id, current_version))
+                    
+                    if cursor.rowcount == 0:
+                        if attempt < max_retries - 1:
+                            logger.warning(f"Account {account_id} was modified by another transaction. "
+                                         f"Retrying... (attempt {attempt + 1})")
+                            time.sleep(retry_delay * (1.5 ** attempt))
+                            continue
+                        else:
+                            raise TransactionError("Account was modified by another transaction")
+                    
+                    logger.info(f"Account {account_id} balance updated: {current_balance} -> {new_balance} "
+                              f"(version {current_version} -> {current_version + 1})")
+                    return True
+                    
+            except TransactionError:
+                raise  # Re-raise transaction errors
+            except Exception as e:
+                logger.error(f"Balance update failed (attempt {attempt + 1}): {e}")
+                if attempt == max_retries - 1:
+                    return False
+                time.sleep(retry_delay * (1.5 ** attempt))
+        
+        return False
     
     def close(self):
         """Close database connections"""

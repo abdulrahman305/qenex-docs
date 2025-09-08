@@ -74,13 +74,22 @@ class DatabaseError(Exception):
     """Database operation error"""
     pass
 
+class TransactionIsolationLevel:
+    """Transaction isolation levels"""
+    READ_UNCOMMITTED = 'READ_UNCOMMITTED'
+    READ_COMMITTED = 'READ_COMMITTED'
+    REPEATABLE_READ = 'REPEATABLE_READ'
+    SERIALIZABLE = 'SERIALIZABLE'
+
 class TransactionManager:
-    """Manages database transactions with proper isolation"""
+    """Manages database transactions with configurable isolation levels"""
     
     def __init__(self, db_path: Path):
         self.db_path = str(db_path)
         self.lock = threading.RLock()
         self.connections = {}
+        self.active_transactions = {}
+        self.default_isolation_level = TransactionIsolationLevel.READ_COMMITTED
         self._init_database()
     
     def _init_database(self):
@@ -152,22 +161,70 @@ class TransactionManager:
         
         return self.connections[thread_id]
     
-    def execute_atomic(self, operations: List[Tuple[str, Tuple]]) -> bool:
-        """Execute multiple operations atomically"""
-        with self.lock:
-            conn = self.get_connection()
-            try:
-                conn.execute('BEGIN IMMEDIATE')
+    def execute_atomic(self, operations: List[Tuple[str, Tuple]], 
+                      isolation_level: str = None) -> bool:
+        """Execute multiple operations atomically with configurable isolation level"""
+        isolation_level = isolation_level or self.default_isolation_level
+        max_retries = 3
+        retry_delay = 0.01
+        
+        for attempt in range(max_retries):
+            with self.lock:
+                conn = self.get_connection()
+                try:
+                    # Set isolation level and begin transaction
+                    self._set_isolation_level(conn, isolation_level)
+                    
+                    if isolation_level == TransactionIsolationLevel.SERIALIZABLE:
+                        conn.execute('BEGIN IMMEDIATE')
+                    else:
+                        conn.execute('BEGIN DEFERRED')
+                    
+                    # Execute all operations within the transaction
+                    affected_rows = 0
+                    for query, params in operations:
+                        cursor = conn.execute(query, params)
+                        affected_rows += cursor.rowcount
+                    
+                    # Commit transaction
+                    conn.commit()
+                    print(f"Transaction completed: {affected_rows} rows affected (isolation: {isolation_level})")
+                    return True
+                    
+                except sqlite3.IntegrityError as e:
+                    conn.rollback()
+                    raise DatabaseError(f"Transaction failed due to constraint violation: {e}")
+                    
+                except sqlite3.OperationalError as e:
+                    conn.rollback()
+                    
+                    if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                        print(f"Database locked, retrying... (attempt {attempt + 1})")
+                        time.sleep(retry_delay * (2 ** attempt))
+                        continue
+                    else:
+                        raise DatabaseError(f"Transaction failed due to operational error: {e}")
                 
-                for query, params in operations:
-                    conn.execute(query, params)
-                
-                conn.commit()
-                return True
-                
-            except Exception as e:
-                conn.rollback()
-                raise DatabaseError(f"Transaction failed: {e}")
+                except Exception as e:
+                    conn.rollback()
+                    raise DatabaseError(f"Transaction failed: {e}")
+        
+        raise DatabaseError(f"Transaction failed after {max_retries} attempts")
+    
+    def _set_isolation_level(self, conn: sqlite3.Connection, isolation_level: str):
+        """Set SQLite-compatible isolation level settings"""
+        if isolation_level == TransactionIsolationLevel.READ_UNCOMMITTED:
+            conn.execute('PRAGMA read_uncommitted = 1')
+        elif isolation_level == TransactionIsolationLevel.READ_COMMITTED:
+            conn.execute('PRAGMA read_uncommitted = 0')
+        elif isolation_level == TransactionIsolationLevel.REPEATABLE_READ:
+            conn.execute('PRAGMA read_uncommitted = 0')
+            # Use WAL mode for better consistency
+            conn.execute('PRAGMA journal_mode = WAL')
+        elif isolation_level == TransactionIsolationLevel.SERIALIZABLE:
+            conn.execute('PRAGMA read_uncommitted = 0')
+            conn.execute('PRAGMA journal_mode = WAL')
+            # IMMEDIATE transactions provide serializable behavior
     
     def close_all(self):
         """Close all connections"""
@@ -924,7 +981,7 @@ class QenexSystem:
                 print(f"Transfer blocked: Risk score {risk['risk_score']:.2f}")
                 return False
             
-            # Execute transfer atomically
+            # Execute transfer atomically with SERIALIZABLE isolation for financial integrity
             operations = [
                 ('UPDATE accounts SET balance = balance - ? WHERE id = ? AND balance >= ?',
                  (str(amount + fee), sender_id, str(amount + fee))),
@@ -934,7 +991,8 @@ class QenexSystem:
                  (tx['id'], sender_id, receiver_id, str(amount), str(fee), 'USD', 'completed'))
             ]
             
-            success = self.db.execute_atomic(operations)
+            # Use SERIALIZABLE isolation level for financial transfers to prevent race conditions
+            success = self.db.execute_atomic(operations, TransactionIsolationLevel.SERIALIZABLE)
             
             if success:
                 # Add to blockchain
