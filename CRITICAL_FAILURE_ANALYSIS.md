@@ -67,7 +67,7 @@ The QENEX system is a catastrophic failure masquerading as enterprise-grade fina
 
 **Authentication & Authorization:**
 - **EXPOSED CREDENTIALS IN CODE:**
-  - Line 688: `'postgresql://banking:password@localhost:5432/banking'`
+  - Line 688: `'postgresql://banking:ceo@qenex.ai:5432/banking'`
   - Line 636-642: Hardcoded test API keys
   - Auth tokens exposed in CLAUDE.md
 

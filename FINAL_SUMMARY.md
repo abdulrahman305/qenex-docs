@@ -11,7 +11,7 @@ All QENEX repositories have been ruthlessly audited, fixed, and perfected:
 - ✅ [qenex-docs](https://github.com/abdulrahman305/qenex-docs) - Documentation
 
 ### Website Deployed:
-- 🌐 [https://qenex.ai](https://qenex.ai) - Live and Operational
+- 🌐 [https://abdulrahman305.github.io/qenex-docs) - Live and Operational
 
 ### Final Metrics:
 - Security: 100% (Zero vulnerabilities)

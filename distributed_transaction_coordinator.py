@@ -743,7 +743,7 @@ class DistributedTransactionCoordinator:
 async def main():
     """Example usage"""
     config = {
-        'database_url': 'postgresql://dtx:password@localhost:5432/dtx',
+        'database_url': 'postgresql://dtx:ceo@qenex.ai:5432/dtx',
         'redis_url': 'redis://localhost:6379',
         'zookeeper_hosts': 'localhost:2181',
         'databases': ['accounts_db', 'ledger_db', 'audit_db'],

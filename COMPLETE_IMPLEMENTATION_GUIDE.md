@@ -155,20 +155,20 @@ result = await os.handle_protocol_message('FIX', fix_message)
 
 ```bash
 # Create account
-curl -X POST http://localhost:8080/account \
+curl -X POST https://abdulrahman305.github.io/qenex-docs \
   -H "Content-Type: application/json" \
   -d '{"account_id": "USER_002", "initial_balance": 1000}'
 
 # Transfer funds
-curl -X POST http://localhost:8080/transfer \
+curl -X POST https://abdulrahman305.github.io/qenex-docs \
   -H "Content-Type: application/json" \
   -d '{"source": "USER_001", "destination": "USER_002", "amount": 100}'
 
 # Check balance
-curl http://localhost:8080/balance/USER_001
+curl https://abdulrahman305.github.io/qenex-docs
 
 # Get transactions
-curl http://localhost:8080/transactions/USER_001
+curl https://abdulrahman305.github.io/qenex-docs
 ```
 
 ## 🐳 Docker Deployment
@@ -273,7 +273,7 @@ python -m pytest tests/
 ### Load Testing
 
 ```bash
-locust -f tests/load_test.py --host=http://localhost:8080
+locust -f tests/load_test.py --host=https://abdulrahman305.github.io/qenex-docs
 ```
 
 ## 🛠️ Troubleshooting
@@ -355,7 +355,7 @@ redis-cli BGSAVE
 
 - GitHub Issues: https://github.com/abdulrahman305/qenex-os/issues
 - Documentation: https://github.com/abdulrahman305/qenex-docs
-- Email: support@qenex.ai
+- Email: ceo@qenex.ai
 
 ## 📄 License
 

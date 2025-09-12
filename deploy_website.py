@@ -288,7 +288,7 @@ server {{
     
     # API proxy (if needed)
     location /api {{
-        proxy_pass http://localhost:8000;
+        proxy_pass https://abdulrahman305.github.io/qenex-docs
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -331,7 +331,7 @@ def main():
         time.sleep(5)
         
         if deployer.verify_deployment():
-            print("\n🎉 WEBSITE IS LIVE AT: https://qenex.ai")
+            print("\n🎉 WEBSITE IS LIVE AT: https://abdulrahman305.github.io/qenex-docs)
         else:
             print("\n📌 DNS propagation in progress. Check again in a few hours.")
             
@@ -339,7 +339,7 @@ def main():
 ╔══════════════════════════════════════════════════════════╗
 ║                  DEPLOYMENT COMPLETE                     ║
 ║                                                          ║
-║  Website: https://qenex.ai                              ║
+║  Website: https://abdulrahman305.github.io/qenex-docs                              ║
 ║  Status: PERFECTION ACHIEVED                            ║
 ║                                                          ║
 ║  The QENEX Financial OS website is now live and         ║

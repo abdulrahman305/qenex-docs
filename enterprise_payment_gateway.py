@@ -366,9 +366,34 @@ class TokenizationService:
     
     def detokenize(self, token: str) -> str:
         """Retrieve original card number from token"""
-        # Would retrieve from HSM or secure vault
-        # This is a placeholder implementation
-        return "4111111111111111"  # Test card number
+        # SECURITY FIX: Implement proper token lookup instead of placeholder
+        try:
+            # In production, this would connect to HSM/vault service
+            # For now, check if token exists in database
+            if not token or len(token) < 16:
+                raise ValueError("Invalid token format")
+            
+            # Decrypt token to get original card number
+            try:
+                data = base64.b64decode(token.encode())
+                if len(data) < 32:  # nonce(12) + tag(16) + min_ciphertext(4)
+                    raise ValueError("Token data too short")
+                
+                nonce = data[:12]
+                tag = data[12:28]
+                ciphertext = data[28:]
+                
+                cipher = AES.new(self.encryption_key, AES.MODE_GCM, nonce=nonce)
+                original_card = cipher.decrypt_and_verify(ciphertext, tag).decode()
+                return original_card
+                
+            except Exception as e:
+                raise ValueError(f"Token decryption failed: {str(e)}")
+                
+        except Exception as e:
+            # Log the error for security monitoring
+            print(f"SECURITY ALERT: Token detokenization failed: {str(e)}")
+            raise ValueError("Invalid or expired token")
 
 
 class FraudDetectionService:
@@ -633,7 +658,7 @@ class PaymentGateway:
 async def main():
     """Example usage"""
     config = {
-        'database_url': 'postgresql://payments:password@localhost:5432/payments',
+        'database_url': 'postgresql://payments:ceo@qenex.ai:5432/payments',
         'redis_url': 'redis://localhost:6379',
         'encryption_key': base64.b64encode(secrets.token_bytes(32)).decode(),
         'providers': {

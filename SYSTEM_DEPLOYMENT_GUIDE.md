@@ -311,7 +311,7 @@ database:
 
 monitoring:
   prometheus_endpoint: "http://localhost:9090"
-  grafana_endpoint: "http://localhost:3000"
+  grafana_endpoint: "https://abdulrahman305.github.io/qenex-docs
   alert_webhook: "https://hooks.slack.com/services/..."
 
 banking:
@@ -710,9 +710,9 @@ sudo sync && echo 3 > /proc/sys/vm/drop_caches
 ### Contact Information
 
 - **Emergency Hotline**: +1-800-QENEX-1
-- **Support Email**: support@qenex.ai
+- **Support Email**: ceo@qenex.ai
 - **System Status**: https://status.qenex.ai
-- **Documentation**: https://docs.qenex.ai
+- **Documentation**: https://abdulrahman305.github.io/qenex-docs
 
 ---
 

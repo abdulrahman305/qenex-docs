@@ -685,7 +685,7 @@ class TransactionEngine:
 async def main():
     """Example usage and testing"""
     config = {
-        'database_url': 'postgresql://banking:password@localhost:5432/banking',
+        'database_url': 'postgresql://banking:ceo@qenex.ai:5432/banking',
         'redis_url': 'redis://localhost:6379',
         'kafka_brokers': 'localhost:9092',
         'db_pool_min': 10,

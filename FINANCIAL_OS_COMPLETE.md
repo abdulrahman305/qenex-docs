@@ -287,13 +287,13 @@ print(f"AI Generation: {status['ai_generation']}")
 
 ```bash
 # Liveness probe
-curl http://localhost:8080/health/live
+curl https://abdulrahman305.github.io/qenex-docs
 
 # Readiness probe
-curl http://localhost:8080/health/ready
+curl https://abdulrahman305.github.io/qenex-docs
 
 # Metrics endpoint
-curl http://localhost:8080/metrics
+curl https://abdulrahman305.github.io/qenex-docs
 ```
 
 ## Security

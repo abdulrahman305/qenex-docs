@@ -46,7 +46,7 @@ Comprehensive documentation for the QENEX autonomous financial operating system,
 
 ## 📞 Support
 
-- **Website**: https://qenex.ai
+- **Website**: https://abdulrahman305.github.io/qenex-docs
 - **Community**: https://community.qenex.ai
 - **Email**: docs@qenex.ai
 - **GitHub**: https://github.com/abdulrahman305/qenex-docs

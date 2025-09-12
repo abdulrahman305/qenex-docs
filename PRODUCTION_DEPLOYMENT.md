@@ -268,7 +268,7 @@ kubectl get pods -n qenex
 # Create .env.production file
 cat << EOF > .env.production
 # Database
-DATABASE_URL=postgresql://qenex:password@localhost:5432/qenex_production
+DATABASE_URL=postgresql://qenex:ceo@qenex.ai:5432/qenex_production
 DATABASE_POOL_SIZE=20
 
 # Redis
@@ -317,7 +317,7 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass https://abdulrahman305.github.io/qenex-docs
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -513,15 +513,15 @@ perf report
 ## Support
 
 ### Technical Support
-- Email: support@qenex.ai
+- Email: ceo@qenex.ai
 - Phone: +1-800-QENEX-AI
 - Slack: qenex-support.slack.com
 
 ### Resources
-- Documentation: https://docs.qenex.ai
-- API Reference: https://api.qenex.ai/docs
+- Documentation: https://abdulrahman305.github.io/qenex-docs
+- API Reference: https://abdulrahman305.github.io/qenex-docs/api
 - Status Page: https://status.qenex.ai
-- Community Forum: https://forum.qenex.ai
+- Community Forum: https://github.com/abdulrahman305/qenex-docs/discussions
 
 ## License
 

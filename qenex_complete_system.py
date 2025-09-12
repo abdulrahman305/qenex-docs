@@ -187,10 +187,11 @@ class UnifiedFinancialOS:
             
             # AI risk analysis
             if self.ai_system:
+                # MATH FIX: Keep decimal precision for financial calculations
                 risk_analysis = self.ai_system.analyze_risk({
                     'from_account': from_account,
                     'to_account': to_account,
-                    'amount': float(amount),
+                    'amount': str(amount),  # Pass as string to preserve precision
                     'transaction_type': transaction_type
                 })
                 

@@ -771,7 +771,7 @@ class ComplianceEngine:
 async def main():
     """Example usage"""
     config = {
-        'database_url': 'postgresql://compliance:password@localhost:5432/compliance',
+        'database_url': 'postgresql://compliance:ceo@qenex.ai:5432/compliance',
         'institution_name': 'QENEX_BANK'
     }
     

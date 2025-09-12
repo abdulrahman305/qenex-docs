@@ -234,7 +234,7 @@ result = await ai_system.process_transaction({
 ### Environment Variables
 ```bash
 # Database
-POSTGRES_URL=postgresql://user:pass@localhost:5432/banking
+POSTGRES_URL=postgresql://user:ceo@qenex.ai:5432/banking
 REDIS_URL=redis://localhost:6379
 
 # Security
@@ -350,9 +350,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## 📞 Support
 
-- Documentation: https://docs.qenex.ai
+- Documentation: https://abdulrahman305.github.io/qenex-docs
 - Issues: https://github.com/abdulrahman305/qenex-os/issues
-- Email: support@qenex.ai
+- Email: ceo@qenex.ai
 
 ---
 

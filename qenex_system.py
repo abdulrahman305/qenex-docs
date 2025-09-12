@@ -972,8 +972,9 @@ class QenexSystem:
                 tx['signature'] = '0' * 128  # Demo signature
             
             # Risk analysis
+            # MATH FIX: Preserve decimal precision for financial risk analysis
             risk = self.risk_analyzer.analyze({
-                'amount': float(amount),
+                'amount': str(amount),  # Pass as string to preserve precision
                 'hour': datetime.now().hour
             })
             

@@ -448,7 +448,7 @@ curl http://localhost:8545/api/v1/blockchain/info
 ## Support
 
 For technical support and questions:
-- Documentation: https://docs.qenex.ai
+- Documentation: https://abdulrahman305.github.io/qenex-docs
 - GitHub Issues: https://github.com/abdulrahman305/qenex-os/issues
-- Email: support@qenex.ai
+- Email: ceo@qenex.ai
 - Discord: https://discord.gg/qenex

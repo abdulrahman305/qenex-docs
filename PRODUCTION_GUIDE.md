@@ -103,7 +103,7 @@
 pip install asyncpg numpy tensorflow cryptography web3
 
 # Set database connection
-export DATABASE_URL="postgresql://user:pass@localhost/qenex"
+export DATABASE_URL="postgresql://user:ceo@qenex.ai/qenex"
 
 # Initialize system
 python3 production_system.py
@@ -307,4 +307,4 @@ MIT License - Production ready for financial institutions
 
 ## 🤝 Support
 
-For enterprise deployment support, contact: support@qenex.ai
+For enterprise deployment support, contact: ceo@qenex.ai
